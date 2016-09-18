@@ -16,14 +16,14 @@ Preusming a `requirements.yml` as follows:
 
     # Install a role from GitHub
     - name: ansible-role-elasticsearch
-    src: https://github.com/jcdarwin/ansible-role-elasticsearch
+      src: https://github.com/jcdarwin/ansible-role-elasticsearch
 
 We can install the role locally, using a `requirements.yml` file:
 
     # Install a role from GitHub
     - name: ansible-role-elasticsearch
-    src: https://github.com/jcdarwin/ansible-role-elasticsearch
-    path: roles/
+      src: https://github.com/jcdarwin/ansible-role-elasticsearch
+      path: roles/
 
 Install the role:
 
