@@ -1,0 +1,13 @@
+---
+# This Playbook deploys elasticsearch!
+
+- hosts: all
+  remote_user: root
+  become: true
+  become_user: root
+  tags: elasticsearch
+  handlers:
+   - include: handlers/main.yml
+
+  tasks:
+  - include: tasks/elasticsearch_install.yml

@@ -1,0 +1,116 @@
+# ===============================================================
+# elasticsearch_install: install elasticsearch
+# https://github.com/ekhoinc/ansible-examples/blob/master/elasticsearch-rolling-upgrade.yml
+# ===============================================================
+
+- include_vars: "defaults/main.yml"
+
+  # this first step is a overkill, but here
+  # in case the upgrade was cancelled by user mid playbook run
+- name: make sure elasticsearch service is running
+  service: name=elasticsearch enabled=yes state=started
+  register: response
+  tags: elasticsearch
+
+- name: Wait for elasticsearch node to come back up if it was stopped
+  wait_for: port={{ ansible_role_elasticsearch.transport_port }} delay=45
+  when: response.changed == true
+  tags: elasticsearch
+
+  # For ansible the uri action needs httplib2
+- name: ensure python-httplib2 is installed
+  apt: name=python-httplib2 state=present
+  tags: elasticsearch
+
+- name: Install JRE
+  apt: pkg=openjdk-{{ ansible_role_elasticsearch.openjdk_version }}-jre-headless state=latest install_recommends=no update_cache=yes
+  tags: elasticsearch
+
+- name: check current version
+  uri: url=http://localhost:{{ ansible_role_elasticsearch.port }} method=GET
+  register: version_found
+  retries: 10
+  delay: 10
+  tags: elasticsearch
+
+- name: Display Current Elasticsearch Version
+  debug: var=version_found.json.version.number
+  tags: elasticsearch
+
+- name: Shutdown elasticsearch node
+  uri: url=http://localhost:{{ ansible_role_elasticsearch.port }}/_cluster/nodes/_local/_shutdown method=POST
+  when: version_found.json.version.number != '{{ ansible_role_elasticsearch.version }}'
+  tags: elasticsearch
+
+- name: Download ElasticSearch package
+  get_url: url=https://download.elastic.co/elasticsearch/release/org/elasticsearch/distribution/deb/elasticsearch/{{ ansible_role_elasticsearch.version }}/elasticsearch-{{ ansible_role_elasticsearch.version }}.deb
+  when: version_found.json.version.number != '{{ ansible_role_elasticsearch.version }}'
+  tags: elasticsearch
+
+- name: Update elasticsearch
+  apt: deb=/tmp/elasticsearch-{{ ansible_role_elasticsearch.version }}.deb
+  notify: restart elasticsearch
+  when: version_found.json.version.number != '{{ ansible_role_elasticsearch.version }}'
+  tags: elasticsearch
+
+- name: clean temp file
+  file: path=/tmp/elasticsearch-{{ ansible_role_elasticsearch.version }}.deb state=absent
+  when: version_found.json.version.number != '{{ ansible_role_elasticsearch.version }}'
+  tags: elasticsearch
+
+- name: Prevent public access
+  lineinfile: >
+    destfile=/etc/elasticsearch/elasticsearch.yml
+    regexp="^# Prevent public access"
+    line="# Prevent public access"
+    insertafter="^#network.bind_host"
+  tags: elasticsearch
+
+- name: Prevent public access
+  lineinfile: >
+    destfile=/etc/elasticsearch/elasticsearch.yml
+    regexp="network.bind_host: localhost"
+    line="network.bind_host: localhost"
+    insertafter="^# Prevent public access"
+  tags: elasticsearch
+
+- name: Prevent remote script execution
+  lineinfile: >
+    destfile=/etc/elasticsearch/elasticsearch.yml
+    regexp="^# Prevent remote script execution"
+    line="# Prevent remote script execution"
+  tags: elasticsearch
+
+- name: Prevent remote script execution
+  lineinfile: >
+    destfile=/etc/elasticsearch/elasticsearch.yml
+    regexp="^# http://bouk.co/blog/elasticsearch-rce/"
+    line="# http://bouk.co/blog/elasticsearch-rce/"
+    insertafter="^# Prevent remote script execution"
+  tags: elasticsearch
+
+- name: Prevent remote script execution
+  lineinfile: >
+    destfile=/etc/elasticsearch/elasticsearch.yml
+    regexp="^script.disable_dynamic: true"
+    line="script.disable_dynamic: true"
+    insertafter="^# http://bouk.co/blog/elasticsearch-rce/"
+  notify: restart elasticsearch
+  tags: elasticsearch
+
+- name: Ensure gzipping of log files
+  blockinfile:
+    dest: /etc/elasticsearch/logging.yml
+    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
+    insertafter: EOF
+    content: |
+      # Use the following log4j-extras RollingFileAppender to enable gzip compression of log files.
+      # For more information see https://logging.apache.org/log4j/extras/apidocs/org/apache/log4j/rolling/RollingFileAppender.html
+      file:
+        type: extrasRollingFile
+        file: ${path.logs}/${cluster.name}.log
+        rollingPolicy: timeBased
+        rollingPolicy.FileNamePattern: ${path.logs}/${cluster.name}.log.%d{yyyy-MM-dd}.gz
+        layout:
+          type: pattern
+          conversionPattern: "[%d{ISO8601}][%-5p][%-25c] %m%n"

@@ -1,0 +1,8 @@
+---
+# defaults file for ansible-role-elasticsearch
+
+ansible_role_elasticsearch:
+  port: 9200
+  transport_port: 9300
+  version: 2.4.0
+  openjdk_version: 8
