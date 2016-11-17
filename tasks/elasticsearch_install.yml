@@ -80,6 +80,10 @@
     insertafter="^# Prevent public access"
   tags: elasticsearch
 
+- name: Make sure Elasticsearch starts and stops automatically with the server
+  command: systemctl enable elasticsearch.service
+  tags: elasticsearch
+
 #- name: Ensure gzipping of log files
 #  blockinfile:
 #    dest: /etc/elasticsearch/logging.yml
