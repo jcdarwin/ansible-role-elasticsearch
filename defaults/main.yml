@@ -4,5 +4,5 @@
 ansible_role_elasticsearch:
   port: 9200
   transport_port: 9300
-  version: 2.4.0
+  version: 2.4.1
   openjdk_version: 8
