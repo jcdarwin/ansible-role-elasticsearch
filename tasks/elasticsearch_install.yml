@@ -42,7 +42,7 @@
 
 - name: Shutdown elasticsearch node
   uri: url=http://localhost:{{ ansible_role_elasticsearch.port }}/_cluster/nodes/_local/_shutdown method=POST
-  when: version_found.json.version.number != '{{ ansible_role_elasticsearch.version }}'
+  when: response.changed != true or version_found.json.version.number != '{{ ansible_role_elasticsearch.version }}'
   tags: elasticsearch
 
 - name: Download ElasticSearch package
